@@ -18,15 +18,16 @@ import (
 	"github.com/autom8ter/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"net/http"
 
 	"os"
 )
 
 var addr string
-var homeTemplate string
-var blogTemplate string
-var dashboard string
+var homeTemplatePath string
+var blogTemplatePath string
+var loggedInTemplatePath string
 
 // serveCmd represents the serve command
 var serveCmd = &cobra.Command{
@@ -42,29 +43,38 @@ var serveCmd = &cobra.Command{
 			ClientId:     os.Getenv("AUTH0_CLIENT_ID"),
 			ClientSecret: os.Getenv("AUTH0_CLIENT_SECRET"),
 		}
-		m := a.Mux("/dashboard")
-
-		log.Debugln("loading templates: ", "static/home.html", "static/blog.html", "static/dashboard.html")
-
-		m.HandleFunc("/dashboard", a.RequireLogin(api.RenderFileWithSessionValue("static/dashboard.html", "userinfo")))
-		m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/home.html")
-		})
-		m.HandleFunc("/blog", func(w http.ResponseWriter, r *http.Request) {
-			http.ServeFile(w, r, "static/blog.html")
-		})
-
-		log.Debugln("registered handlers: ", "/", "/blog", "/callback", "/login", "/logout", "/dashboard")
-
 		log.Debugln("starting server: ", addr)
-		if err := http.ListenAndServe(addr, m); err != nil {
-			log.Fatal(err.Error())
+		if err := a.ListenAndServe(
+			addr,
+			&api.RouterPaths{
+				HomePath:     "/",
+				LoggedInPath: "/dashboard",
+				LoginPath:    "/login",
+				LogoutPath:   "/logout",
+				CallbackPath: "/callback",
+				HomeURL:      "http://localhost:8080",
+			},
+			func(w http.ResponseWriter, r *http.Request) {
+				http.ServeFile(w, r, homeTemplatePath)
+			},
+			api.RenderFileWithUserInfo(loggedInTemplatePath),
+		); err != nil {
+			log.Fatalln(err.Error())
 		}
 	},
 }
 
 func init() {
-	serveCmd.Flags().StringVarP(&addr, "addr", "a", ":8080", "address to serve on")
+
+	viper.SetDefault("addr", ":8080")
+	viper.SetDefault("home", "static/home.html")
+	viper.SetDefault("loggedin", "static/loggedin.html")
+	viper.SetDefault("blog", "static/blog.html")
+
+	serveCmd.Flags().StringVarP(&addr, "addr", "a", viper.GetString("addr"), "address to serve on")
+	serveCmd.Flags().StringVar(&homeTemplatePath, "home", viper.GetString("home"), "path to home template")
+	serveCmd.Flags().StringVar(&loggedInTemplatePath, "loggedin", viper.GetString("loggedin"), "path to loggedin template")
+	serveCmd.Flags().StringVar(&blogTemplatePath, "blog", viper.GetString("blog"), "path to blog template")
 
 	rootCmd.AddCommand(serveCmd)
 }
