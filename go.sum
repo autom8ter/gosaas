@@ -11,6 +11,8 @@ github.com/autom8ter/api v0.0.0-20190424045151-c7786e6d9881 h1:btdxd9DJ4raHFII4/
 github.com/autom8ter/api v0.0.0-20190424045151-c7786e6d9881/go.mod h1:A4fKWQISPa+djFqBZpNXFQwXnkjMGNwP0jCC87kVjYo=
 github.com/autom8ter/api v0.0.0-20190424053045-063f9737a2c8 h1:pC7NRlzLSJiz29Ymama0D906stEf1njhAgeWkAm07I0=
 github.com/autom8ter/api v0.0.0-20190424053045-063f9737a2c8/go.mod h1:9Ehvrg9UttK6VoLTGC80vsFXWCy0xz8Y+6csUY7ySXk=
+github.com/autom8ter/api v0.0.0-20190424060337-02112405c0d3 h1:sN2JDNljTFjUBjnzpb8Uauj0YLfuhzAOd6erYlgZkNE=
+github.com/autom8ter/api v0.0.0-20190424060337-02112405c0d3/go.mod h1:9Ehvrg9UttK6VoLTGC80vsFXWCy0xz8Y+6csUY7ySXk=
 github.com/autom8ter/oauth2 v0.0.0-20190423235527-47c4b4d63668/go.mod h1:QDG89tQ5IMIgKbHUWQRkvNU6es07XTThYY0QGY3w5as=
 github.com/autom8ter/objectify v0.0.0-20190422234248-2629fc698124/go.mod h1:Hg+n5d+Qj3M0I+vnIo+009AoX2qzOtQJ20UVHYnjF3Q=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=

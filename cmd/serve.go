@@ -18,14 +18,15 @@ import (
 	"github.com/autom8ter/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"io"
 	"net/http"
 
 	"os"
 )
 
-var loggedIn string
 var addr string
+var homeTemplate string
+var blogTemplate string
+var dashboard string
 
 // serveCmd represents the serve command
 var serveCmd = &cobra.Command{
@@ -43,13 +44,18 @@ var serveCmd = &cobra.Command{
 		}
 		m := a.Mux("/dashboard")
 
+		log.Debugln("loading templates: ", "static/home.html", "static/blog.html", "static/dashboard.html")
+
+		m.HandleFunc("/dashboard", a.RequireLogin(api.RenderFileWithSessionValue("static/dashboard.html", "userinfo")))
 		m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			io.WriteString(w, "Logged Out")
+			http.ServeFile(w, r, "static/home.html")
+		})
+		m.HandleFunc("/blog", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "static/blog.html")
 		})
 
-		m.HandleFunc(loggedIn, a.RequireLogin(func(w http.ResponseWriter, r *http.Request) {
-			io.WriteString(w, "Logged In")
-		}))
+		log.Debugln("registered handlers: ", "/", "/blog", "/callback", "/login", "/logout", "/dashboard")
+
 		log.Debugln("starting server: ", addr)
 		if err := http.ListenAndServe(addr, m); err != nil {
 			log.Fatal(err.Error())
@@ -58,7 +64,7 @@ var serveCmd = &cobra.Command{
 }
 
 func init() {
-	serveCmd.Flags().StringVarP(&loggedIn, "logged-in", "l", "/dashboard", "logged in path")
 	serveCmd.Flags().StringVarP(&addr, "addr", "a", ":8080", "address to serve on")
+
 	rootCmd.AddCommand(serveCmd)
 }
