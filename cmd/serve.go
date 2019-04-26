@@ -16,9 +16,11 @@ package cmd
 
 import (
 	"github.com/autom8ter/api"
+	"github.com/autom8ter/gosaas/handler"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
 	"net/http"
 
 	"os"
@@ -28,36 +30,39 @@ var addr string
 var homeTemplatePath string
 var blogTemplatePath string
 var loggedInTemplatePath string
+var apiaddr string
 
 // serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "start the GoSaaS server",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := api.InitSessions("")
+		conn, err := grpc.DialContext(api.Context, apiaddr, grpc.WithInsecure())
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		a := &api.Auth{
+		err = api.SecretFromEnv().InitSessions()
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		h := handler.NewHandler(&api.Auth{
 			Domain:       os.Getenv("AUTH0_DOMAIN"),
 			ClientId:     os.Getenv("AUTH0_CLIENT_ID"),
 			ClientSecret: os.Getenv("AUTH0_CLIENT_SECRET"),
-		}
+		}, api.NewClientSet(conn), "/", "/dashboard", "/login", "/logout", "/callback", "http://localhost:8080", "/blog")
+
 		log.Debugln("starting server: ", addr)
-		if err := a.ListenAndServe(
+		if err := h.ListenAndServe(
 			addr,
-			&api.RouterPaths{
-				HomePath:     "/",
-				LoggedInPath: "/dashboard",
-				LoginPath:    "/login",
-				LogoutPath:   "/logout",
-				CallbackPath: "/callback",
-				HomeURL:      "http://localhost:8080",
+			func(w http.ResponseWriter, r *http.Request) {
+				http.ServeFile(w, r, homeTemplatePath)
 			},
 			func(w http.ResponseWriter, r *http.Request) {
 				http.ServeFile(w, r, homeTemplatePath)
 			},
-			api.RenderFileWithUserInfo(loggedInTemplatePath),
+			func(w http.ResponseWriter, r *http.Request) {
+				http.ServeFile(w, r, homeTemplatePath)
+			},
 		); err != nil {
 			log.Fatalln(err.Error())
 		}
