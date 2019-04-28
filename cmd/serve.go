@@ -16,14 +16,13 @@ package cmd
 
 import (
 	"github.com/autom8ter/api"
+	"github.com/autom8ter/api/common"
 	"github.com/autom8ter/gosaas/handler"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"net/http"
-
-	"os"
 )
 
 var addr string
@@ -37,18 +36,15 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "start the GoSaaS server",
 	Run: func(cmd *cobra.Command, args []string) {
-		conn, err := grpc.DialContext(api.Context, apiaddr, grpc.WithInsecure())
+		conn, err := grpc.DialContext(common.ClientContext, apiaddr, grpc.WithInsecure())
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		err = api.SecretFromEnv().InitSessions()
-		if err != nil {
-			log.Fatal(err.Error())
-		}
+
 		h := handler.NewHandler(&api.Auth{
-			Domain:       os.Getenv("AUTH0_DOMAIN"),
-			ClientId:     os.Getenv("AUTH0_CLIENT_ID"),
-			ClientSecret: os.Getenv("AUTH0_CLIENT_SECRET"),
+			Domain:       common.StringFromEnv("AUTH0_DOMAIN"),
+			ClientId:     common.StringFromEnv("AUTH0_CLIENT_ID"),
+			ClientSecret: common.StringFromEnv("AUTH0_CLIENT_SECRET"),
 		}, api.NewClientSet(conn), "/", "/dashboard", "/login", "/logout", "/callback", "http://localhost:8080", "/blog")
 
 		log.Debugln("starting server: ", addr)

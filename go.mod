@@ -1,7 +1,7 @@
 module github.com/autom8ter/gosaas
 
 require (
-	github.com/autom8ter/api v0.0.0-20190426101155-4669d0999960
+	github.com/autom8ter/api v0.0.0-20190428064454-8677d6736996
 	github.com/gorilla/mux v1.7.1
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0

@@ -1,10 +1,16 @@
 package handler
 
 import (
+	"bytes"
 	"github.com/autom8ter/api"
+	"github.com/autom8ter/api/common"
 	"github.com/gorilla/mux"
+	"html/template"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type Handler struct {
@@ -31,7 +37,7 @@ func (h *Handler) callbackHandler() http.HandlerFunc {
 			return
 		}
 		state := r.URL.Query().Get("state")
-		session, err := api.GetStateSession(r)
+		session, err := common.GetStateSession(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -49,25 +55,30 @@ func (h *Handler) callbackHandler() http.HandlerFunc {
 			return
 		}
 		t.ToSession(session)
-		resp, err := h.Resource.GetResource(r.Context(), t.ResourceRequest(h.Domain, api.HTTPMethod_GET, api.URL_USER_INFOURL, nil, nil))
+		var req = &api.ResourceRequest{}
+		req.Token = t
+		req.Domain = h.Domain
+		req.Url = api.URL_USER_INFOURL
+		req.Method = common.HTTPMethod_GET
+		resp, err := h.Resource.GetResource(r.Context(), req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		var userinfo map[string]interface{}
-		err = resp.UnMarshalJSON(userinfo)
+		err = resp.UnmarshalJSON(bytes.NewBuffer(common.Util.MarshalJSON(userinfo)))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		sesh, err := api.GetAuthSession(r)
+		sesh, err := common.GetAuthSession(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		api.AuthSessionValues(sesh, "user", userinfo)
-		api.SaveSession(w, r)
+		common.AuthSessionValues(sesh, "user", userinfo)
+		common.SaveSession(w, r)
 		// Redirect to logged in page
 		http.Redirect(w, r, h.LoggedInPath, http.StatusSeeOther)
 	}
@@ -80,7 +91,7 @@ func (a *Handler) ListenAndServe(addr string, blog, home, loggedIn http.HandlerF
 
 func (c *Handler) logoutURL() (string, error) {
 	var Url *url.URL
-	Url, err := url.Parse("https://" + c.Domain)
+	Url, err := url.Parse("https://" + c.Domain.Text)
 	if err != nil {
 		return "", err
 	}
@@ -88,7 +99,7 @@ func (c *Handler) logoutURL() (string, error) {
 	Url.Path += "/v2/logout"
 	parameters := url.Values{}
 	parameters.Add("returnTo", c.HomeURL)
-	parameters.Add("client_id", c.ClientId)
+	parameters.Add("client_id", c.ClientId.Text)
 	Url.RawQuery = parameters.Encode()
 
 	return Url.String(), nil
@@ -109,7 +120,7 @@ func (a *Handler) Router(home, blog, loggedIn http.HandlerFunc) *mux.Router {
 
 func (a *Handler) RequireLogin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, err := api.GetStateSession(r)
+		session, err := common.GetStateSession(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -146,14 +157,63 @@ func (a *Handler) loginHandler() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		state := api.CreateRandomState()
-		session, err := api.GetStateSession(r)
+		state := common.RandomString()
+		session, err := common.GetStateSession(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		session.Values["state"] = state
-		api.SaveSession(w, r)
-		http.Redirect(w, r, a.AuthCodeURL(state, api.URL_USER_INFOURL), http.StatusTemporaryRedirect)
+		common.SaveSession(w, r)
+		http.Redirect(w, r, a.AuthCodeURL(state.Text, api.URL_USER_INFOURL), http.StatusTemporaryRedirect)
 	}
+}
+
+func RenderFileFunc(name string, data []byte) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		bits, err := ioutil.ReadFile(name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		bitstring := string(bits)
+		if strings.Contains(bitstring, "{{") {
+			templ, err := template.New("").Funcs(common.FuncMap()).Parse(string(bits))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			err = templ.Execute(w, data)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+		_, err = io.WriteString(w, bitstring)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+}
+
+func WriteFileFunc(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		bits, err := ioutil.ReadFile(name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		bitstring := string(bits)
+		_, err = io.WriteString(w, bitstring)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 }
